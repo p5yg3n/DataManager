@@ -12,6 +12,8 @@ export_credentials.cfg
 *.godot
 *.tmp
 *.uid
+*.editorconfig
+*.gitattributes
 
 # Imported translations (automatically generated from CSV files)
 *.translation
@@ -20,4 +22,3 @@ export_credentials.cfg
 .mono/
 data_*/
 mono_crash.*.json
-.gitattributes

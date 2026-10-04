@@ -3,12 +3,11 @@ class_name DataManager
 const DIR := "user://data/"
 static var EXT := ".dat"
 
-
 ## Global encryption key used for secure storage.
 static var encryption_key: String = ""
 
 
-## Saves [param data] to a file with atomic write + optional encryption.
+## Saves [data] to a file with atomic write + optional encryption.
 ## Returns true on success.
 static func save(filename: String, data: Dictionary) -> bool:
 	DirAccess.make_dir_recursive_absolute(DIR)
@@ -18,7 +17,6 @@ static func save(filename: String, data: Dictionary) -> bool:
 	var file: FileAccess
 	var payload := data.duplicate(true)
 
-	# Open file with or without encryption from the start
 	if not encryption_key.is_empty():
 		file = FileAccess.open_encrypted_with_pass(tmp, FileAccess.WRITE, encryption_key)
 	else:
@@ -40,7 +38,7 @@ static func save(filename: String, data: Dictionary) -> bool:
 	return true
 
 
-## Loads data from [param filename]. Returns empty dictionary if missing,
+## Loads data from [filename]. Returns empty dictionary if missing,
 ## corrupted, or of wrong type.
 static func load(filename: String) -> Dictionary:
 	var path := DIR.path_join(filename + EXT)
@@ -48,17 +46,19 @@ static func load(filename: String) -> Dictionary:
 		push_warning("DataManager: File does not exist: " + path)
 		return {}
 
-	var file := FileAccess.open(path, FileAccess.READ)
+	var file: FileAccess = null
+
+	# If an encryption key is set, try opening encrypted first
+	if not encryption_key.is_empty():
+		file = FileAccess.open_encrypted_with_pass(path, FileAccess.READ, encryption_key)
+
+	# Fallback to standard open if not encrypted, no key is set, or decryption failed
+	if not file:
+		file = FileAccess.open(path, FileAccess.READ)
+
 	if not file:
 		push_error("DataManager: Failed to open file for reading: " + path)
 		return {}
-
-	# Try encrypted first if key is set
-	if not encryption_key.is_empty():
-		file = FileAccess.open_encrypted_with_pass(path, FileAccess.READ, encryption_key)
-		if not file:
-			push_warning("DataManager: Decryption failed for " + filename + ", falling back to unencrypted read")
-			file = FileAccess.open(path, FileAccess.READ) # fallback
 
 	var data = file.get_var(true)
 	if not data is Dictionary:
@@ -78,7 +78,7 @@ static func list_saves() -> Array[String]:
 	return Array(dir.get_files()).filter(func(f): return f.ends_with(EXT)).map(func(f): return f.get_basename())
 
 
-## Deletes the save file associated with [param filename].
+## Deletes the save file associated with [filename].
 static func delete(filename: String) -> bool:
 	var path := DIR.path_join(filename + EXT)
 	if not FileAccess.file_exists(path):
@@ -101,7 +101,8 @@ static func exists(filename: String) -> bool:
 ## Returns the basename of the most recently modified save file.
 static func get_latest() -> String:
 	var files := list_saves()
-	if files.is_empty(): return ""
+	if files.is_empty(): 
+		return ""
 
 	var latest := ""
 	var max_time := -1

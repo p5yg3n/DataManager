@@ -1,103 +1,108 @@
-# Godot 4 Data Manager
+# Godot 4 Data Management Utility (`DataManager`)
 
-A robust, secure, and thread-safe data management utility for Godot 4. This static helper class handles saving, loading, listing, and deleting game save files with built-in **atomic writes** (to prevent corruption during crashes) and **optional file encryption**.
+A robust, high-performance, and atomic data persistence utility for Godot 4. Designed with static methods for clean global access (`DataManager.save("slot_1", data)`), it features atomic write safeguards against save corruption, built-in variable compression, optional encryption, and file management helpers.
 
-## Features
+---
 
-* **Atomic File Writes:** Writes data to a temporary `.tmp` file first and swaps it atomically on completion, ensuring players never get stuck with a broken 0-byte save file.
-* **Optional AES Encryption:** Secures save files using Godot's built-in password encryption (`FileAccess.open_encrypted_with_pass`).
-* **Built-in Compression:** Automatically compresses variable payloads to keep save file sizes lightweight.
-* **Graceful Fallbacks:** `load()` automatically attempts decryption if a key is provided, with a safe fallback reader for backward compatibility.
-* **Handy Utilities:** Built-in helper methods to list all active saves, check existence, delete files, and instantly query the most recently modified save slot.
+## ✨ Features
 
+* **Global Static API:** Clean, intuitive syntax accessible from anywhere in your project without needing references or instantiation.
+* **Atomic Writes:** Writes saves to a temporary file (`.tmp`) first before safely renaming them to the final path, completely protecting players against save file corruption if the game crashes or loses power mid-save.
+* **Optional Encryption:** Seamlessly supports password-encrypted saves via `encryption_key`, with fallback handling for unencrypted or legacy saves.
+* **Built-in Compression:** Automatically compresses stored variables using Godot's built-in serialization compression.
+* **Fully Decoupled:** Operates as a self-contained module with zero hard dependencies on external singletons or custom utilities.
+* **Comprehensive File Management:** Includes helper utilities to list save slots, delete files, check existence, and automatically find the most recently modified save.
 
-## Installation & Setup
+---
 
-1. Place `DataManager.gd` into your project scripts folder (e.g., `res://scripts/core/DataManager.gd`).
-2. Because it uses static methods and acts as a global utility, you can call its methods directly from anywhere in your project without needing an Autoload singleton instance (though you can register it as one if preferred).
+## 📦 Installation & Setup
 
+1. Create a folder in your project directory (e.g., `res://scripts/utils/`).
+2. Add the core script file: `data_manager.gd`.
 
-## Usage Guide
+---
 
-### 1. Setting an Encryption Key (Optional)
-If you want to encrypt your save files, set the static `encryption_key` property early in your game's lifecycle (such as in your main menu or global game singleton):
+## 🚀 Usage Guide
 
-```func _ready() -> void:
-	DataManager.encryption_key = "your_secure_password_here"
+### 1. Saving and Loading Data
 
-```
-
-### 2. Saving Data
-
-Pass a string identifier (the save name without extension) and a `Dictionary` payload:
-
-```func save_player_game() -> void:
-	var player_data: Dictionary = {
-		"health": 100,
-		"score": 1450,
-		"position": Vector2(250, 400)
-	}
-	
-	var success := DataManager.save("slot_1", player_data)
-	if success:
-		print("Game saved successfully!")
-
-```
-
-### 3. Loading Data
-
-Load the dictionary back. If the file is missing, corrupted, or not a dictionary, it safely returns an empty dictionary `{}`.
-
-```func load_player_game() -> void:
-	var data := DataManager.load("slot_1")
-	if data.is_empty():
-		return # No save found or error occurred
-		
-	print("Loaded score: ", data.get("score", 0))
-
-```
-
-### 4. Managing Saves
+Call the data manager globally using a save filename (without extension) and a `Dictionary` payload:
 
 ```gdscript
-# Get an array of all save basenames (e.g., ["slot_1", "slot_2"])
-var all_saves := DataManager.list_saves()
+# Prepare your save data
+var player_data := {
+	"level": 3,
+	"health": 85.5,
+	"inventory": ["sword", "shield", "potion"]
+}
 
-# Find the most recently modified save file name
-var latest_save := DataManager.get_latest()
+# Save data atomically to user://data/save_slot_1.dat
+if DataManager.save("save_slot_1", player_data):
+	print("Game saved successfully!")
 
-# Check if a specific save exists
-if DataManager.exists("slot_1"):
-	print("Save slot 1 exists.")
-
-# Delete a save file
-DataManager.delete("slot_1")
+# Load data back (returns an empty dictionary if missing or corrupted)
+var loaded_data = DataManager.load("save_slot_1")
+if not loaded_data.is_empty():
+	print("Loaded player level: %d" % loaded_data.level)
 
 ```
 
+### 2. Enabling Encryption
 
-## Script Reference
+You can globally secure your save files by assigning a password string to `encryption_key` before saving or loading:
 
-### Constants & Variables
+```gdscript
+func _ready() -> void:
+	DataManager.encryption_key = "super_secret_game_password_123"
 
-| Property | Type | Description |
-| --- | --- | --- |
-| `DIR` | `String` | Target save directory (defaults to `"user://data/"`). |
-| `EXT` | `String` | File extension used for save files (`".dat"`). |
-| `encryption_key` | `String` | Global static password string used for encryption and decryption. |
+```
 
-### Static Methods
+### 3. Managing Save Files
 
-| Method | Return Type | Description |
-| --- | --- | --- |
-| `save(filename, data)` | `bool` | Writes a dictionary atomically with optional compression and encryption. |
-| `load(filename)` | `Dictionary` | Reads and returns save data, handling decryption and type validation. |
-| `list_saves()` | `Array[String]` | Returns an array of all save file names (without extensions). |
-| `delete(filename)` | `bool` | Deletes the specified save file. |
-| `exists(filename)` | `bool` | Returns `true` if the save file exists on disk. |
-| `get_latest()` | `String` | Returns the basename of the most recently modified save file. |
+Easily query your directory for existing save slots or cleanup old files:
 
+```gdscript
+# Get an array of all save basenames (e.g., ["save_slot_1", "autosave"])
+var saves := DataManager.list_saves()
 
-## License
+# Check if a specific save file exists
+if DataManager.exists("save_slot_1"):
+	print("Save slot 1 exists.")
 
-Distributed under the MIT License. Feel free to use and adapt this system for your Godot projects.
+# Find the most recently modified save file
+var latest_save := DataManager.get_latest()
+print("Resuming latest save: %s" % latest_save)
+
+# Delete a save file
+DataManager.delete("save_slot_1")
+
+```
+
+---
+
+## 📚 Script Reference
+
+### `DataManager.gd`
+
+The global static data persistence utility class.
+
+| Property / Constant | Type | Default | Description |
+| --- | --- | --- | --- |
+| `DIR` | `String` | `"user://data/"` | The root directory where data files are stored. |
+| `EXT` | `String` | `".dat"` | The standard file extension appended to save files. |
+| `encryption_key` | `String` | `""` | Optional global encryption password used for secure storage. |
+
+| Method | Description |
+| --- | --- |
+| `DataManager.save(filename, data)` | Atomically saves a dictionary to disk with compression and optional encryption. Returns `true` on success. |
+| `DataManager.load(filename)` | Loads and decodes data from disk. Returns an empty dictionary if missing or corrupted. |
+| `DataManager.list_saves()` | Returns an array of strings containing all save basenames without extensions. |
+| `DataManager.delete(filename)` | Deletes a specified save file. Returns `true` on success. |
+| `DataManager.exists(filename)` | Returns `true` if the given save file exists on disk. |
+| `DataManager.get_latest()` | Returns the basename of the most recently modified save file. |
+
+---
+
+## 📝 License
+
+Distributed under the MIT License. Feel free to use this in your own personal or commercial Godot projects.
